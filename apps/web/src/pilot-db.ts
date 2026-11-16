@@ -1,0 +1,9 @@
+export type PilotMedicine={id:string;name:string;strength:string;form:string;rack:string;shelf:string;confirmed:boolean};
+export type PilotStore={id:string;name:string;createdAt:string};
+const DB="medilocate-pilot-v1";
+function connect():Promise<IDBDatabase>{return new Promise((resolve,reject)=>{const req=indexedDB.open(DB,1);req.onupgradeneeded=()=>{const db=req.result;if(!db.objectStoreNames.contains("stores"))db.createObjectStore("stores",{keyPath:"id"});if(!db.objectStoreNames.contains("medicines"))db.createObjectStore("medicines",{keyPath:"id"});};req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error);});}
+async function transaction<T>(stores:string[],mode:IDBTransactionMode,operation:(tx:IDBTransaction,resolve:(value:T)=>void,reject:(reason:unknown)=>void)=>void):Promise<T>{const db=await connect();try{return await new Promise<T>((resolve,reject)=>{const tx=db.transaction(stores,mode);operation(tx,resolve,reject);tx.onerror=()=>reject(tx.error);});}finally{db.close();}}
+export async function saveStore(store:PilotStore){return transaction<void>(["stores"],"readwrite",(tx,resolve)=>{tx.objectStore("stores").put(store);tx.oncomplete=()=>resolve();});}
+export async function listStores():Promise<PilotStore[]>{return transaction(["stores"],"readonly",(tx,resolve)=>{const req=tx.objectStore("stores").getAll();req.onsuccess=()=>resolve(req.result as PilotStore[]);});}
+export async function saveMedicines(storeId:string,items:PilotMedicine[]){return transaction<void>(["medicines"],"readwrite",(tx,resolve)=>{for(const m of items)tx.objectStore("medicines").put({...m,id:storeId+":"+m.id,storeId});tx.oncomplete=()=>resolve();});}
+export async function listMedicines(storeId:string):Promise<PilotMedicine[]>{return transaction(["medicines"],"readonly",(tx,resolve)=>{const req=tx.objectStore("medicines").getAll();req.onsuccess=()=>resolve((req.result as (PilotMedicine&{storeId:string})[]).filter(m=>m.storeId===storeId));});}
