@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
+import { searchCached } from "./local-search";
 import { createRoot } from "react-dom/client";
 import "./style.css";
 
@@ -10,15 +11,23 @@ function App(){
   const [query,setQuery]=useState("");
   const [items,setItems]=useState<Medicine[]>([]);
   const [busy,setBusy]=useState(false);
+  const catalog=useRef<Medicine[]>([]);
   const [message,setMessage]=useState("");
   async function search(q=query){
     setBusy(true);
     try {
       const response=await fetch(API+"/api/v1/medicines?q="+encodeURIComponent(q));
       if(!response.ok) throw new Error("Unable to load medicines");
-      setItems(await response.json());
+      const records: Medicine[]=await response.json();
+      if (!q.trim()) catalog.current=records;
+      setItems(records);
       setMessage("");
-    }catch(error){setMessage(String(error));}
+    }catch(error){
+      if(catalog.current.length){
+        setItems(searchCached(catalog.current,q));
+        setMessage("Network unavailable: showing this session’s last fetched catalog. Stock and locations may be stale.");
+      }else setMessage(String(error));
+    }
     finally{setBusy(false);}
   }
   useEffect(()=>{void search("");},[]);
