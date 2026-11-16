@@ -10,7 +10,7 @@ export type CachedMedicine = {
 };
 
 export function normalize(text: string): string {
-  return text.normalize("NFKC").toLocaleLowerCase().replace(/[^\\p{L}\\p{N}]+/gu, " ").trim();
+  return text.normalize("NFKC").toLocaleLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim();
 }
 
 function editDistance(a: string, b: string): number {
