@@ -70,6 +70,13 @@ def medicines(q: str="",db: Session=Depends(get_db)):
         rows.sort(key=lambda m:fuzz.WRatio(term,m.name.lower()),reverse=True)
     return [to_dict(m) for m in rows[:100]]
 
+
+@app.get("/api/v1/catalog/snapshot")
+def catalog_snapshot(db: Session=Depends(get_db)):
+    """Bounded full snapshot for offline demo cache. Requires auth before real deployment."""
+    rows=db.scalars(select(Medicine).options(selectinload(Medicine.locations)).order_by(Medicine.external_id).limit(5000)).all()
+    return {"items":[to_dict(m) for m in rows],"generated_at":datetime.now(timezone.utc).isoformat(),"truncated":len(rows)==5000}
+
 from pydantic import BaseModel, Field
 class LocationInput(BaseModel):
     rack: str=Field(min_length=1,max_length=40)
