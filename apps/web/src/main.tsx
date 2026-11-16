@@ -17,13 +17,22 @@ function App(){
   const [message,setMessage]=useState("");
   const [savedAt,setSavedAt]=useState<string|null>(null);
   const [offline,setOffline]=useState(false);
+  async function syncCatalog(){
+    const response=await fetch(API+"/api/v1/catalog/snapshot");
+    if(!response.ok)throw new Error("Offline snapshot sync failed");
+    const payload: {items:Medicine[];truncated:boolean}=await response.json();
+    if(payload.truncated)throw new Error("Catalog exceeds offline snapshot limit; cache not replaced");
+    const saved=await saveCatalog(payload.items);
+    catalog.current=payload.items;
+    setSavedAt(saved);
+  }
   async function search(q=query){
     setBusy(true);
     try {
       const response=await fetch(API+"/api/v1/medicines?q="+encodeURIComponent(q));
       if(!response.ok) throw new Error("Unable to load medicines");
       const records: Medicine[]=await response.json();
-      if (!q.trim()) { catalog.current=records; const saved=await saveCatalog(records);setSavedAt(saved); }
+      if (!q.trim()) { await syncCatalog(); }
       setOffline(false);
       setItems(records);
       setMessage("");
@@ -46,6 +55,12 @@ function App(){
     }).catch(()=>{}).finally(()=>{if(active)void search("");});
     return ()=>{active=false;};
   },[]);
+  async function refreshOffline(){
+    setBusy(true);
+    try{await syncCatalog();setOffline(false);setItems(searchCached(catalog.current,query));setMessage("Offline catalog synchronized.");}
+    catch(error){setMessage(String(error));}
+    finally{setBusy(false);}
+  }
   async function clearOffline(){
     await clearCatalog();
     catalog.current=[];setSavedAt(null);setItems([]);
@@ -89,7 +104,7 @@ function App(){
     <section className="search-card"><label htmlFor="medicine-search">Medicine name</label><div className="search-row"><input id="medicine-search" autoComplete="off" value={query} onChange={e=>setQuery(e.target.value)} onKeyDown={e=>{if(e.key==="Enter")void search();}} placeholder="e.g. Dolo 650"/><button onClick={()=>void search()} disabled={busy}>Find</button></div><small>Typo-tolerant search. Always verify medicine and strength.</small></section>
     <section><div className="heading"><h2>Medicines</h2><label className="upload">Import CSV<input type="file" accept=".csv,text/csv" onChange={e=>{const file=e.target.files?.[0];if(file)void upload(file);e.target.value="";}}/></label></div>
       <p className="notice" role="status">{offline?"Offline cached catalog": "Online catalog"} · Last device sync: {savedAt?new Date(savedAt).toLocaleString():"Never"}</p>
-      <button className="outline" onClick={()=>void clearOffline()}>Clear offline cache</button>
+      <div className="search-row"><button className="outline" onClick={()=>void refreshOffline()}>Sync offline catalog</button><button className="outline" onClick={()=>void clearOffline()}>Clear offline cache</button></div>
       {message&&<p className="notice" role="status">{message}</p>}
       {busy&&<p>Loading…</p>}
       {!busy&&items.length===0&&<p>No medicines found.</p>}
