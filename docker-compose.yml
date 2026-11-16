@@ -1,0 +1,26 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: medilocate
+      POSTGRES_PASSWORD: medilocate
+      POSTGRES_DB: medilocate
+    healthcheck:
+      test: ["CMD-SHELL","pg_isready -U medilocate"]
+      interval: 3s
+      retries: 15
+    ports: ["5432:5432"]
+  api:
+    build: ./apps/api
+    environment:
+      DATABASE_URL: postgresql+psycopg://medilocate:medilocate@db:5432/medilocate
+    depends_on:
+      db:
+        condition: service_healthy
+    ports: ["8000:8000"]
+  web:
+    build: ./apps/web
+    environment:
+      VITE_API_URL: http://localhost:8000
+    depends_on: [api]
+    ports: ["5173:5173"]
