@@ -17,7 +17,6 @@ function Pilot(){
  const [shelf,setShelf]=useState("");
  const [rxText,setRxText]=useState("");
  const [searchMode,setSearchMode]=useState<"text"|"scan">("text");
- const [queries,setQueries]=useState<string[]>([]);
  const [matches,setMatches]=useState<ReturnType<typeof matchCatalog>>([]);
  useEffect(()=>{void listStores().then(setStores).catch(e=>setMessage(String(e)));},[]);
  async function selectStore(id:string){setStoreId(id);setCatalog(await listMedicines(id));setStage("catalog");setDrafts([]);setMessage("");}
@@ -37,7 +36,7 @@ function Pilot(){
   const items=chosen.map(d=>({id:crypto.randomUUID(),name:d.name.trim(),strength:d.strength.trim(),form:d.form.trim(),rack:d.rack.trim(),shelf:d.shelf.trim(),confirmed:true}));
   await saveMedicines(storeId,items);setCatalog(await listMedicines(storeId));setDrafts([]);setMessage("Saved "+items.length+" pharmacist-confirmed locations locally.");
  }
- function findRacks(){const lines=rxText.split(/\r?\n/).map(x=>x.trim()).filter(Boolean);if(!lines.length){setMessage("Enter a medicine name or review the extracted prescription text before searching.");return;}setMessage("");setQueries(lines);setMatches(matchCatalog(catalog,lines));setStage("results");}
+ function findRacks(){const lines=rxText.split(/\r?\n/).map(x=>x.trim()).filter(Boolean);if(!lines.length){setMessage("Enter a medicine name or review the extracted prescription text before searching.");return;}setMessage("");setMatches(matchCatalog(catalog,lines));setStage("results");}
  return <main>
  <header><div className="brand">✚</div><div><h1>MediLocate AI</h1><p>Shopkeeper pilot · local device data</p></div></header>
  <nav className="search-row"><button className="outline" onClick={()=>setStage("onboard")}>1. Shop</button><button className="outline" disabled={!storeId} onClick={()=>setStage("catalog")}>2. Racks</button><button className="outline" disabled={!storeId} onClick={()=>setStage("prescription")}>3. Find medicines</button></nav>
